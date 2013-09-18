@@ -26,6 +26,7 @@ void checkCUDAError(const char *msg) {
   cudaError_t err = cudaGetLastError();
   if( cudaSuccess != err) {
     fprintf(stderr, "Cuda error: %s: %s.\n", msg, cudaGetErrorString( err) ); 
+	system("pause");
     exit(EXIT_FAILURE); 
   }
 } 
@@ -44,10 +45,25 @@ __host__ __device__ glm::vec3 generateRandomNumberFromThread(glm::vec2 resolutio
 //TODO: IMPLEMENT THIS FUNCTION
 //Function that does the initial raycast from the camera
 __host__ __device__ ray raycastFromCameraKernel(glm::vec2 resolution, float time, int x, int y, glm::vec3 eye, glm::vec3 view, glm::vec3 up, glm::vec2 fov){
-  ray r;
-  r.origin = glm::vec3(0,0,0);
-  r.direction = glm::vec3(0,0,-1);
-  return r;
+  
+	glm::vec3 A = glm::cross(view, up);
+	glm::vec3 B = glm::cross(A, view);
+	glm::vec3 M = eye + view;
+
+	float absC = glm::length(view);
+	float absA = glm::length(A);
+	float absB = glm::length(B);
+
+	glm::vec3 H = (A * absC * (float)tan(fov.x*(PI/180))) / absA;
+	glm::vec3 V = (B * absC * (float)tan(fov.y*(PI/180))) / absB;
+
+	glm::vec3 P = M + (2 * (x / (resolution.x - 1)) - 1) * H + (1 - 2 * (y / (resolution.y - 1))) * V;
+	glm::vec3 D = (P - eye) / glm::length(P - eye);
+
+	ray r;
+	r.origin = eye;
+	r.direction = D;	
+	return r;
 }
 
 //Kernel that blacks out a given image buffer
@@ -70,6 +86,7 @@ __global__ void sendImageToPBO(uchar4* PBOpos, glm::vec2 resolution, glm::vec3* 
   if(x<=resolution.x && y<=resolution.y){
 
       glm::vec3 color;
+
       color.x = image[index].x*255.0;
       color.y = image[index].y*255.0;
       color.z = image[index].z*255.0;
@@ -94,19 +111,429 @@ __global__ void sendImageToPBO(uchar4* PBOpos, glm::vec2 resolution, glm::vec3* 
   }
 }
 
+
+
+__host__ __device__  bool ShadowRayUnblock(staticGeom* geoms, int numberofGeoms, glm::vec3 intersectionPoint, int lightIndex, int geomIndex, glm::vec3 normal, glm::vec3 lightPos)
+{	
+	ray r;	
+	r.direction = glm::normalize(lightPos - intersectionPoint);
+	r.origin = intersectionPoint + .1f * r.direction;
+
+	//surface parallel to the light
+	//if(glm::dot(r.direction, normal) < 1e-5 && glm::dot(r.direction, normal) > -1e-5)
+		//return false;
+
+	glm::vec3 tempInterPoint, tempNormal;	
+	float t = FLT_MAX;
+	int intersectIndex = -1;
+	for(int i = 0; i < numberofGeoms; ++i)
+	{		
+		float temp;
+		if(geoms[i].type == CUBE)
+			temp = boxIntersectionTest(geoms[i], r, tempInterPoint, tempNormal);
+		else
+			temp = sphereIntersectionTest(geoms[i], r, tempInterPoint, tempNormal);
+
+		if(temp < t && temp != -1.0f)
+		{
+			t = temp;
+			intersectIndex = i;
+		}
+	}
+
+	if(intersectIndex == lightIndex)
+		return true;
+	else
+		return false;
+}
+
+__host__ __device__ void TraceReflective(ray r, int rayDepth, staticGeom* geoms, int numberOfGeoms, material* materials, glm::vec3& color)
+{
+	glm::vec3 intersectionPoint;
+	glm::vec3 normal;
+
+	float t = FLT_MAX;
+	int geomIndex = 0;
+	for(int i = numberOfGeoms - 1; i >= 0; i--)
+	{	
+		float temp;
+		if(geoms[i].type == SPHERE)
+			temp = sphereIntersectionTest(geoms[i], r, intersectionPoint, normal);
+		else if(geoms[i].type == CUBE)
+			temp = boxIntersectionTest(geoms[i], r, intersectionPoint, normal);
+
+		if(temp != -1.0f && temp < t)
+		{
+			t = temp;
+			geomIndex = i;		
+		}
+	}	
+
+	if(t == FLT_MAX)//no intersection
+	{
+		color = glm::vec3(0,0,0);
+		return;
+	}
+	else 
+	{
+		material currMaterial =  materials[geoms[geomIndex].materialid];
+		color = currMaterial.color;
+		return;
+	}
+}
+
+struct rayInfo
+{
+	ray r;
+	int geomIndex;
+	glm::vec3 intersectionPoint;
+	glm::vec3 normal;
+	bool isValid;
+};
+
+__host__ __device__ bool checkIntersect(staticGeom* geoms, int numberOfGeoms, ray r, glm::vec3& intersectionPoint, glm::vec3& normal, int& geomIndex)
+{
+	float t = FLT_MAX;
+	//int geomIndex = 0;
+	for(int i = numberOfGeoms - 1; i >= 0; --i)
+	{	
+		float temp;
+		//if(geoms[i].materialid != 7 || geoms[i].materialid != 8)
+		if(geoms[i].type == SPHERE)
+			temp = sphereIntersectionTest(geoms[i], r, intersectionPoint, normal);
+		else if(geoms[i].type == CUBE)
+			temp = boxIntersectionTest(geoms[i], r, intersectionPoint, normal);
+
+		if(temp != -1.0f && temp < t)
+		{
+			t = temp;
+			geomIndex = i;		
+		}
+	}	
+
+	if(t != FLT_MAX){
+		//get the intersection point and normal
+		if(geoms[geomIndex].type == SPHERE)
+			sphereIntersectionTest(geoms[geomIndex], r, intersectionPoint, normal);
+		else
+			boxIntersectionTest(geoms[geomIndex], r, intersectionPoint, normal);
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
+__host__ __device__ void TraceRay2(ray r, int rayDepth, staticGeom* geoms, int numberOfGeoms, material* materials, glm::vec3& color, 
+								   glm::vec3 eyePosition, rayInfo* reflectiveArray, rayInfo* refractiveArray, int numberOfDepth)
+{
+	reflectiveArray[0].r.origin = r.origin;
+	reflectiveArray[0].r.direction = r.direction;
+	refractiveArray[0].r.origin = r.origin;
+	refractiveArray[0].r.direction = r.direction;
+
+	glm::vec3 ointersectionPoint, onormal;
+	int ogeomIndex;
+	bool oisIntersect = checkIntersect(geoms, numberOfGeoms, r, ointersectionPoint, onormal, ogeomIndex);
+
+	if(oisIntersect){
+	int lightIndex;
+	//Find the Light Poistion
+	for(int i = 0; i < numberOfGeoms; i++)
+	{
+		if(geoms[i].materialid == 7 || geoms[i].materialid == 8)
+		{		
+			lightIndex = i;
+			break;
+		}
+	}
+
+	int mReflect;
+	for(int i = 0; i < numberOfDepth; i++)
+	{
+		glm::vec3 intersectionPoint, normal;
+		int geomIndex;
+		bool isIntersect = checkIntersect(geoms, numberOfGeoms, reflectiveArray[i].r, intersectionPoint, normal, geomIndex);
+		if(isIntersect)
+		{
+				reflectiveArray[i].geomIndex = geomIndex;
+				reflectiveArray[i].intersectionPoint = intersectionPoint;
+				reflectiveArray[i].normal = normal;
+				reflectiveArray[i].isValid = true;
+
+				material currMaterial =  materials[geoms[geomIndex].materialid];
+				glm::vec3 spec, refr;
+				glm::vec3 reflectedColor, refractedColor;
+
+				if(currMaterial.hasReflective > 0.0f && i != numberOfDepth - 1)//Reflective
+				{			
+					glm::vec3 reflectionDirection = calculateReflectionDirection(normal, r.direction);
+					ray newRay;
+					newRay.origin = intersectionPoint + 0.001f * reflectionDirection;
+					newRay.direction = reflectionDirection;	
+
+					reflectiveArray[i+1].r.origin = newRay.origin;
+					reflectiveArray[i+1].r.direction = newRay.direction;
+				}
+			}
+			else{
+				mReflect = i;
+				break;
+			}
+		}
+
+		//For spec color;
+		glm::vec3 spec;
+		for(int i = mReflect - 1; i >= 0; i++)
+		{
+			if(reflectiveArray[i].isValid)
+			{
+				int geomIndex = reflectiveArray[i].geomIndex;
+				glm::vec3 intersectionPoint = reflectiveArray[i].intersectionPoint;
+				glm::vec3 normal = reflectiveArray[i].normal;
+
+				material currMaterial =  materials[geoms[geomIndex].materialid];
+
+				glm::vec3 lightPos = geoms[lightIndex].translation;
+				spec = .2f * currMaterial.color/* * ambientTerm*/;
+
+				if(ShadowRayUnblock(geoms, numberOfGeoms, intersectionPoint, lightIndex, geomIndex, normal, lightPos))
+				{
+					float diffuseTerm;			
+					diffuseTerm = glm::dot(glm::normalize(lightPos - intersectionPoint), normal);
+					diffuseTerm = max(diffuseTerm, 0.0f);
+
+					float specTerm = glm::dot(calculateReflectionDirection(normal, (intersectionPoint - lightPos)), glm::normalize(eyePosition - intersectionPoint));
+					specTerm = max(specTerm, 0.0f);
+
+					float specNum;
+					if(currMaterial.specularExponent > 0)
+						specNum = 0.7f * pow(specTerm, currMaterial.specularExponent);
+					else
+						specNum = 0.0f;
+
+					spec += (materials[geoms[lightIndex].materialid].color * (0.7f * currMaterial.color * diffuseTerm + specNum)) + spec;
+				}
+			}
+		}
+	
+
+		material currMaterial =  materials[geoms[ogeomIndex].materialid];
+	glm::vec3 lightPos = geoms[lightIndex].translation;
+	color = .2f * currMaterial.color/* * ambientTerm*/ ;
+
+	if(ShadowRayUnblock(geoms, numberOfGeoms, ointersectionPoint, lightIndex, ogeomIndex, onormal, lightPos))
+	{
+		float diffuseTerm;			
+		diffuseTerm = glm::dot(glm::normalize(lightPos - ointersectionPoint), onormal);
+		diffuseTerm = max(diffuseTerm, 0.0f);
+
+		float specTerm = glm::dot(calculateReflectionDirection(onormal, (ointersectionPoint - lightPos)), glm::normalize(eyePosition - ointersectionPoint));
+		specTerm = max(specTerm, 0.0f);
+
+		float specNum;
+		if(currMaterial.specularExponent > 0)
+			specNum = 0.7f * pow(specTerm, currMaterial.specularExponent);
+		else
+			specNum = 0.0f;
+
+		color += (materials[geoms[lightIndex].materialid].color * (0.7f * currMaterial.color * diffuseTerm + specNum)) + spec * 0.5f;
+	}
+	}
+}
+
+__host__ __device__ void TraceRay(ray r, int rayDepth, staticGeom* geoms, int numberOfGeoms, material* materials, glm::vec3& color, glm::vec3 eyePosition)
+{
+	if(rayDepth > 3)
+	{
+		color = glm::vec3(0,0,0);
+		return;
+	}
+
+	glm::vec3 intersectionPoint;
+	glm::vec3 normal;
+
+	float t = FLT_MAX;
+	int geomIndex = 0;
+	for(int i = numberOfGeoms - 1; i >= 0; --i)
+	{	
+		float temp;
+		//if(geoms[i].materialid != 7 || geoms[i].materialid != 8)
+		if(geoms[i].type == SPHERE)
+			temp = sphereIntersectionTest(geoms[i], r, intersectionPoint, normal);
+		else if(geoms[i].type == CUBE)
+			temp = boxIntersectionTest(geoms[i], r, intersectionPoint, normal);
+
+		if(temp != -1.0f && temp < t)
+		{
+			t = temp;
+			geomIndex = i;		
+		}
+	}	
+
+	//get the intersection point and normal
+	if(geoms[geomIndex].type == SPHERE)
+		sphereIntersectionTest(geoms[geomIndex], r, intersectionPoint, normal);
+	else
+		boxIntersectionTest(geoms[geomIndex], r, intersectionPoint, normal);
+
+	
+	int lightIndex;
+	//Find the Light Poistion
+	for(int i = 0; i < numberOfGeoms; i++)
+	{
+		if(geoms[i].materialid == 7 || geoms[i].materialid == 8)
+		{		
+			lightIndex = i;
+			break;
+		}
+	}			
+	
+	if(t == FLT_MAX)//no intersection
+	{
+		color = glm::vec3(0,0,0);
+		return;
+	}
+	else 
+	{		
+		material currMaterial =  materials[geoms[geomIndex].materialid];
+		glm::vec3 spec, refr;
+		glm::vec3 reflectedColor, refractedColor;
+
+		if(currMaterial.hasReflective > 0.0f)//Reflective
+		{			
+			glm::vec3 reflectionDirection = calculateReflectionDirection(normal, r.direction);
+			ray newRay;
+			newRay.origin = intersectionPoint + 0.001f * reflectionDirection;
+			newRay.direction = reflectionDirection;	
+			
+			TraceRay(newRay, rayDepth + 1, geoms, numberOfGeoms, materials, reflectedColor, eyePosition);			
+
+			float reflective = currMaterial.hasReflective;
+			spec = reflective * reflectedColor;
+		}
+		else
+			spec = glm::vec3(0,0,0);	
+
+		if(currMaterial.hasRefractive > 0.0f)//Refractive
+		{
+			float refractive = currMaterial.indexOfRefraction;
+
+			float inOrOut = glm::dot(r.direction, normal);
+			glm::vec3 refractedDirection;
+			
+			if(inOrOut < 0)
+			{
+				refractedDirection = calculateTransmissionDirection(normal, r.direction, 1.0, refractive); 
+			}
+			else
+			{
+				refractedDirection = calculateTransmissionDirection(-normal, r.direction, refractive, 1.0); 
+			}			
+			ray newRay;
+			newRay.origin = intersectionPoint + 0.001f * refractedDirection;
+			newRay.direction = refractedDirection;
+
+			////Do it twice
+			//glm::vec3 newIntersectionPoint, newNormal;
+
+			//float tt = FLT_MAX;
+			//int geomI = -1;
+			//for(int i = numberOfGeoms - 1; i >= 0; --i)
+			//{	
+			//	float temp;				
+			//	if(geoms[i].type == SPHERE)
+			//		temp = sphereIntersectionTest(geoms[i], newRay, newIntersectionPoint, newNormal);
+			//	else if(geoms[i].type == CUBE)
+			//		temp = boxIntersectionTest(geoms[i], newRay, newIntersectionPoint, newNormal);				
+
+			//	if(temp != -1.0f && temp < tt)
+			//	{
+			//		tt = temp;
+			//		geomI = i;		
+			//	}
+			//}	
+
+			//if(geomI != -1){
+			//	//get the intersection point and normal
+			//	if(geoms[geomI].type == SPHERE)
+			//		sphereIntersectionTest(geoms[geomI], newRay, newIntersectionPoint, newNormal);
+			//	else
+			//		boxIntersectionTest(geoms[geomI], newRay, newIntersectionPoint, newNormal);
+
+			//	inOrOut = glm::dot(newRay.direction, newNormal);
+			//
+			//	if(inOrOut < 0)
+			//	{
+			//		refractedDirection = calculateTransmissionDirection(newNormal, newRay.direction, 1.0, refractive); 
+			//	}
+			//	else
+			//	{
+			//		refractedDirection = calculateTransmissionDirection(-newNormal, newRay.direction, refractive, 1.0); 
+			//	}
+				//newRay.origin = newIntersectionPoint + 0.001f * refractedDirection;
+				//newRay.direction = refractedDirection;
+			//}
+
+			TraceRay(newRay, rayDepth + 1, geoms, numberOfGeoms, materials, refractedColor, eyePosition);
+			refr = currMaterial.hasRefractive * refractedColor;
+		}
+		else{
+			refr = glm::vec3(0.0f,0.0f,0.0f);
+		}
+				
+
+	//	for(int i = 0; i < 10; i++)
+	//	{
+		//	glm::vec3 lightPos = getRandomPointOnCube(geoms[lightIndex], (float)rand()/(float)RAND_MAX);
+
+			glm::vec3 lightPos = geoms[lightIndex].translation;
+			color = .2f * currMaterial.color/* * ambientTerm*/ + refr;
+
+			if(ShadowRayUnblock(geoms, numberOfGeoms, intersectionPoint, lightIndex, geomIndex, normal, lightPos))
+			{
+				float diffuseTerm;			
+				diffuseTerm = glm::dot(glm::normalize(lightPos - intersectionPoint), normal);
+				diffuseTerm = max(diffuseTerm, 0.0f);
+
+				float specTerm = glm::dot(calculateReflectionDirection(normal, (intersectionPoint - lightPos)), glm::normalize(eyePosition - intersectionPoint));
+				specTerm = max(specTerm, 0.0f);
+
+				float specNum;
+				if(currMaterial.specularExponent > 0)
+					specNum = 0.7f * pow(specTerm, currMaterial.specularExponent);
+				else
+					specNum = 0.0f;
+
+				color += (materials[geoms[lightIndex].materialid].color * (0.7f * currMaterial.color * diffuseTerm + specNum)) + spec;
+			}
+		//}
+		return;
+	}	
+}
+
 //TODO: IMPLEMENT THIS FUNCTION
 //Core raytracer kernel
-__global__ void raytraceRay(glm::vec2 resolution, float time, cameraData cam, int rayDepth, glm::vec3* colors,
-                            staticGeom* geoms, int numberOfGeoms){
+__global__ void raytraceRay(glm::vec2 resolution, float time, cameraData cam, int rayDepth, glm::vec3* colors, staticGeom* geoms,
+							int numberOfGeoms, material* materials, int numberOfMaterials, rayInfo* reflectiveArray, rayInfo* refractiveArray,
+							int numberOfDepth)
+{
 
   int x = (blockIdx.x * blockDim.x) + threadIdx.x;
   int y = (blockIdx.y * blockDim.y) + threadIdx.y;
   int index = x + (y * resolution.x);
 
-  if((x<=resolution.x && y<=resolution.y)){
+	if((x<=resolution.x && y<=resolution.y))
+	{
+		ray r = raycastFromCameraKernel(resolution, time, x, y, cam.position, cam.view, cam.up, cam.fov);
+		glm::vec3 color;		
 
-    colors[index] = generateRandomNumberFromThread(resolution, time, x, y);
-   }
+		TraceRay(r, rayDepth, geoms, numberOfGeoms, materials, color, cam.position);			
+		//TraceRay2(r, rayDepth, geoms, numberOfGeoms, materials, color, cam.position, reflectiveArray, refractiveArray, numberOfDepth);
+		//TestRecursive(r, rayDepth, geoms, numberOfGeoms, materials, numberOfMaterials, color, cam.position);
+		colors[index] = color;
+	}
 }
 
 //TODO: FINISH THIS FUNCTION
@@ -125,6 +552,7 @@ void cudaRaytraceCore(uchar4* PBOpos, camera* renderCam, int frame, int iteratio
   cudaMalloc((void**)&cudaimage, (int)renderCam->resolution.x*(int)renderCam->resolution.y*sizeof(glm::vec3));
   cudaMemcpy( cudaimage, renderCam->image, (int)renderCam->resolution.x*(int)renderCam->resolution.y*sizeof(glm::vec3), cudaMemcpyHostToDevice);
   
+ 
   //package geometry and materials and sent to GPU
   staticGeom* geomList = new staticGeom[numberOfGeoms];
   for(int i=0; i<numberOfGeoms; i++){
@@ -142,6 +570,26 @@ void cudaRaytraceCore(uchar4* PBOpos, camera* renderCam, int frame, int iteratio
   staticGeom* cudageoms = NULL;
   cudaMalloc((void**)&cudageoms, numberOfGeoms*sizeof(staticGeom));
   cudaMemcpy( cudageoms, geomList, numberOfGeoms*sizeof(staticGeom), cudaMemcpyHostToDevice);
+
+  //passing material
+  material* cudamaterial = NULL;
+  cudaMalloc((void**)&cudamaterial, numberOfMaterials*sizeof(material));
+  cudaMemcpy( cudamaterial, materials, numberOfMaterials*sizeof(material), cudaMemcpyHostToDevice);
+
+
+  int numberOfDepth = 5;
+
+  rayInfo* reflectiveArray = new rayInfo[5];
+  rayInfo* refractiveArray = new rayInfo[5];
+
+  rayInfo* cudaReflectiveArray = NULL;
+  cudaMalloc((void**)&cudaReflectiveArray, numberOfDepth*sizeof(rayInfo));
+  cudaMemcpy(cudaReflectiveArray, reflectiveArray, numberOfDepth*sizeof(rayInfo), cudaMemcpyHostToDevice);
+
+  rayInfo* cudaRefractiveArray = NULL;
+  cudaMalloc((void**)&cudaRefractiveArray, numberOfDepth*sizeof(rayInfo));
+  cudaMemcpy(cudaRefractiveArray, refractiveArray, numberOfDepth*sizeof(rayInfo), cudaMemcpyHostToDevice);
+
   
   //package camera
   cameraData cam;
@@ -151,9 +599,16 @@ void cudaRaytraceCore(uchar4* PBOpos, camera* renderCam, int frame, int iteratio
   cam.up = renderCam->ups[frame];
   cam.fov = renderCam->fov;
 
+  size_t size;
+  cudaDeviceSetLimit(cudaLimitStackSize, 10000*sizeof(float));
+  cudaDeviceGetLimit(&size, cudaLimitStackSize);
+  printf("Stack size found to be %dn",(int)size);
+  checkCUDAError("pre-raytraceRay error");
   //kernel launches
-  raytraceRay<<<fullBlocksPerGrid, threadsPerBlock>>>(renderCam->resolution, (float)iterations, cam, traceDepth, cudaimage, cudageoms, numberOfGeoms);
-
+  raytraceRay<<<fullBlocksPerGrid, threadsPerBlock>>>(renderCam->resolution, (float)iterations, cam, traceDepth, cudaimage, cudageoms, 
+	  numberOfGeoms, cudamaterial, numberOfMaterials, cudaReflectiveArray, cudaRefractiveArray, numberOfDepth);
+  
+  checkCUDAError("raytraceRay error");
   sendImageToPBO<<<fullBlocksPerGrid, threadsPerBlock>>>(PBOpos, renderCam->resolution, cudaimage);
 
   //retrieve image from GPU
