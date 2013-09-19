@@ -104,7 +104,6 @@ void runCuda(){
 
   // Map OpenGL buffer object for writing from CUDA on a single GPU
   // No data is moved (Win & Linux). When mapped to CUDA, OpenGL should not use this buffer
-  
   if(iterations<renderCam->iterations){
     uchar4 *dptr=NULL;
     iterations++;
@@ -142,8 +141,8 @@ void runCuda(){
       
       gammaSettings gamma;
       gamma.applyGamma = true;
-      gamma.gamma = 1.0/2.2;
-      gamma.divisor = renderCam->iterations;
+      gamma.gamma = 1.0/1.2;
+      gamma.divisor = 1.0;//renderCam->iterations / 2;
       outputImage.setGammaSettings(gamma);
       string filename = renderCam->imageName;
       string s;
@@ -166,7 +165,7 @@ void runCuda(){
       targetFrame++;
       iterations = 0;
       for(int i=0; i<renderCam->resolution.x*renderCam->resolution.y; i++){
-        renderCam->image[i] = glm::vec3(0,0,0);
+			renderCam->image[i] = glm::vec3(0,0,0);
       }
       cudaDeviceReset(); 
       finishedRender = false;

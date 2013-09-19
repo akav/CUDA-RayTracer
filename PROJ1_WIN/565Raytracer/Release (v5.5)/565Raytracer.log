@@ -1,4 +1,4 @@
-﻿Build started 9/17/2013 9:45:35 PM.
+﻿Build started 9/18/2013 10:54:07 PM.
      1>Project "D:\Class\565\Project1\Project1-RayTracer\PROJ1_WIN\565Raytracer\565Raytracer.vcxproj" on node 2 (Build target(s)).
      1>InitializeBuildStatus:
          Creating "Release (v5.5)\565Raytracer.unsuccessfulbuild" because "AlwaysCreate" was specified.
@@ -8,7 +8,7 @@
        Skipping target "AddCudaCompilePropsDeps" because all output files are up-to-date with respect to the input files.
        CudaBuild:
          Compiling CUDA source file ..\..\src\raytraceKernel.cu...
-         cmd.exe /C "C:\Users\tiansijie\AppData\Local\Temp\tmpde49ad2932ba420dbad983dcfa2415a5.cmd"
+         cmd.exe /C "C:\Users\tiansijie\AppData\Local\Temp\tmp4f7f36804cec400c9dbc8bee6f96883e.cmd"
          "D:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\bin\nvcc.exe" -gencode=arch=compute_20,code=\"sm_21,compute_20\" --use-local-env --cl-version 2010 -ccbin "D:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin"  -I"D:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include" -I"D:\ProgramData\NVIDIA Corporation\CUDA Samples\v5.5\common\inc" -I../shared/glew/includes -I../shared/freeglut/includes -I"D:\ProgramData\NVIDIA Corporation\CUDA Samples\v5.5\common\inc" -I"D:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include" -I../shared/glew/include -I../shared/freeglut/include -I"D:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include" -I"D:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include"     --keep-dir "Release (v5.5)" -maxrregcount=0  --machine 32 --compile -cudart static     -DWIN32 -DNDEBUG -D_CONSOLE -D_UNICODE -DUNICODE -Xcompiler "/EHsc /W3 /nologo /O2 /Zi  /MD  " -o "D:\Class\565\Project1\Project1-RayTracer\PROJ1_WIN\565Raytracer\Win32/Release (v5.5)/raytraceKernel.cu.obj" "D:\Class\565\Project1\Project1-RayTracer\src\raytraceKernel.cu"
          
          D:\Class\565\Project1\Project1-RayTracer\PROJ1_WIN\565Raytracer>"D:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\bin\nvcc.exe" -gencode=arch=compute_20,code=\"sm_21,compute_20\" --use-local-env --cl-version 2010 -ccbin "D:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin"  -I"D:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include" -I"D:\ProgramData\NVIDIA Corporation\CUDA Samples\v5.5\common\inc" -I../shared/glew/includes -I../shared/freeglut/includes -I"D:\ProgramData\NVIDIA Corporation\CUDA Samples\v5.5\common\inc" -I"D:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include" -I../shared/glew/include -I../shared/freeglut/include -I"D:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include" -I"D:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include"     --keep-dir "Release (v5.5)" -maxrregcount=0  --machine 32 --compile -cudart static     -DWIN32 -DNDEBUG -D_CONSOLE -D_UNICODE -DUNICODE -Xcompiler "/EHsc /W3 /nologo /O2 /Zi  /MD  " -o "D:\Class\565\Project1\Project1-RayTracer\PROJ1_WIN\565Raytracer\Win32/Release (v5.5)/raytraceKernel.cu.obj" "D:\Class\565\Project1\Project1-RayTracer\src\raytraceKernel.cu" 
@@ -516,6 +516,8 @@
          
      1>d:\class\565\project1\project1-raytracer\src\interactions.h(105): warning : variable "around" was declared but never referenced
          
+     1>D:/Class/565/Project1/Project1-RayTracer/src/raytraceKernel.cu(411): warning : variable "area" was declared but never referenced
+         
      1>d:\program files\nvidia gpu computing toolkit\cuda\v5.5\include\math_functions.h : warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
      1>d:\program files\nvidia gpu computing toolkit\cuda\v5.5\include\math_functions.h(870): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
      1>d:\program files\nvidia gpu computing toolkit\cuda\v5.5\include\math_functions.h(1846): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
@@ -572,7 +574,9 @@
          
      1>d:\class\565\project1\project1-raytracer\src\interactions.h(105): warning : variable "around" was declared but never referenced
          
-     1>ptxas : warning : Stack size for entry function '_Z11raytraceRayN3glm6detail5tvec2IfEEf10cameraDataiPNS0_5tvec3IfEEP10staticGeomiP8materialiP7rayInfoSC_i' cannot be statically determined
+     1>D:/Class/565/Project1/Project1-RayTracer/src/raytraceKernel.cu(411): warning : variable "area" was declared but never referenced
+         
+     1>ptxas : warning : Stack size for entry function '_Z11raytraceRayN3glm6detail5tvec2IfEEf10cameraDataiPNS0_5tvec3IfEEP10staticGeomiP8materialiiS6_i' cannot be statically determined
      1>d:\program files\nvidia gpu computing toolkit\cuda\v5.5\include\math_functions.h : warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
      1>d:\program files\nvidia gpu computing toolkit\cuda\v5.5\include\math_functions.h(870): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
      1>d:\program files\nvidia gpu computing toolkit\cuda\v5.5\include\math_functions.h(1846): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
@@ -589,22 +593,22 @@
      1>d:\class\565\project1\project1-raytracer\src\glm\./core/func_common.hpp : warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
      1>d:\class\565\project1\project1-raytracer\src\glm\core\func_common.inl : warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
      1>d:\class\565\project1\project1-raytracer\src\glm\./core/func_integer.hpp : warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+     1>D:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\thrust/random/detail/xor_combine_engine_max.h(191): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+     1>d:\program files\nvidia gpu computing toolkit\cuda\v5.5\include\math_functions.h : warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+     1>d:\program files\nvidia gpu computing toolkit\cuda\v5.5\include\math_functions.h(870): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+     1>d:\program files\nvidia gpu computing toolkit\cuda\v5.5\include\math_functions.h(1846): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
      1>D:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\thrust/detail/pair.inl(85): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
      1>d:\class\565\project1\project1-raytracer\src\intersections.h(257): warning C4244: 'argument' : conversion from 'float' to 'unsigned int', possible loss of data
      1>d:\class\565\project1\project1-raytracer\src\intersections.h(303): warning C4244: 'argument' : conversion from 'float' to 'unsigned int', possible loss of data
      1>d:\class\565\project1\project1-raytracer\src\intersections.h(315): warning C4305: 'initializing' : truncation from 'double' to 'float'
      1>d:\class\565\project1\project1-raytracer\src\interactions.h(77): warning C4244: 'initializing' : conversion from 'double' to 'float', possible loss of data
-     1>D:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\thrust/random/detail/xor_combine_engine_max.h(191): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
-     1>d:\program files\nvidia gpu computing toolkit\cuda\v5.5\include\math_functions.h : warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
-     1>d:\program files\nvidia gpu computing toolkit\cuda\v5.5\include\math_functions.h(870): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
-     1>d:\program files\nvidia gpu computing toolkit\cuda\v5.5\include\math_functions.h(1846): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+     1>d:\class\565\project1\project1-raytracer\src\interactions.h(105): warning C4244: 'initializing' : conversion from 'double' to 'float', possible loss of data
+     1>D:/Class/565/Project1/Project1-RayTracer/src/raytraceKernel.cu(40): warning C4244: 'initializing' : conversion from 'float' to 'int', possible loss of data
+     1>D:/Class/565/Project1/Project1-RayTracer/src/raytraceKernel.cu(42): warning C4244: 'argument' : conversion from 'float' to 'unsigned int', possible loss of data
      1>d:\program files\nvidia gpu computing toolkit\cuda\v5.5\include\math_functions.h(2747): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
      1>d:\program files\nvidia gpu computing toolkit\cuda\v5.5\include\math_functions.h(3698): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
      1>d:\program files\nvidia gpu computing toolkit\cuda\v5.5\include\math_functions.h(4610): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
      1>d:\program files\nvidia gpu computing toolkit\cuda\v5.5\include\math_functions.h(5501): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
-     1>d:\class\565\project1\project1-raytracer\src\interactions.h(105): warning C4244: 'initializing' : conversion from 'double' to 'float', possible loss of data
-     1>D:/Class/565/Project1/Project1-RayTracer/src/raytraceKernel.cu(37): warning C4244: 'initializing' : conversion from 'float' to 'int', possible loss of data
-     1>D:/Class/565/Project1/Project1-RayTracer/src/raytraceKernel.cu(39): warning C4244: 'argument' : conversion from 'float' to 'unsigned int', possible loss of data
      1>d:\program files\nvidia gpu computing toolkit\cuda\v5.5\include\math_functions.h(6407): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
      1>d:\program files\nvidia gpu computing toolkit\cuda\v5.5\include\math_functions.h(7316): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
        ClCompile:
