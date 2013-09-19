@@ -16,7 +16,7 @@
 #include "interactions.h"
 #include <vector>
 
-#define LIGHT_NUM 10
+#define LIGHT_NUM 20
 #define ANTI_NUM 2
 
 #if CUDA_VERSION >= 5000
@@ -44,6 +44,17 @@ __host__ __device__ glm::vec3 generateRandomNumberFromThread(glm::vec2 resolutio
 
   return glm::vec3((float) u01(rng), (float) u01(rng), (float) u01(rng));
 }
+
+__host__ __device__ int generateRandomNumber(glm::vec2 resolution, float time, int x, int y)
+{
+	int index = x + (y * resolution.x);
+   
+	thrust::default_random_engine rng(hash(index*time));
+	thrust::uniform_real_distribution<float> u01(0,1);
+
+	return (int)(u01(rng)) * 10;
+}
+
 
 //TODO: IMPLEMENT THIS FUNCTION
 //Function that does the initial raycast from the camera
@@ -314,7 +325,7 @@ __host__ __device__ void TraceRay2(ray r, int rayDepth, staticGeom* geoms, int n
 }
 
 __host__ __device__ void TraceRay(ray r, int rayDepth, staticGeom* geoms, int numberOfGeoms, material* materials, glm::vec3& color, 
-								  glm::vec3 eyePosition, glm::vec3* lightPos, int lightIndex, float time)
+								  glm::vec3 eyePosition, glm::vec3* lightPos, int lightIndex, float time, int randomLightPos)
 {
 	if(rayDepth > 3)
 	{
@@ -353,7 +364,7 @@ __host__ __device__ void TraceRay(ray r, int rayDepth, staticGeom* geoms, int nu
 			newRay.origin = intersectionPoint + 0.001f * reflectionDirection;
 			newRay.direction = reflectionDirection;	
 			
-			TraceRay(newRay, rayDepth + 1, geoms, numberOfGeoms, materials, reflectedColor, eyePosition, lightPos, lightIndex, time);			
+			TraceRay(newRay, rayDepth + 1, geoms, numberOfGeoms, materials, reflectedColor, eyePosition, lightPos, lightIndex, time, randomLightPos);			
 
 			float reflective = currMaterial.hasReflective;
 			spec = reflective * reflectedColor;
@@ -379,7 +390,7 @@ __host__ __device__ void TraceRay(ray r, int rayDepth, staticGeom* geoms, int nu
 			newRay.origin = intersectionPoint + 0.001f * refractedDirection;
 			newRay.direction = refractedDirection;
 
-			TraceRay(newRay, rayDepth + 1, geoms, numberOfGeoms, materials, refractedColor, eyePosition, lightPos, lightIndex, time);
+			TraceRay(newRay, rayDepth + 1, geoms, numberOfGeoms, materials, refractedColor, eyePosition, lightPos, lightIndex, time, randomLightPos);
 			refr = currMaterial.hasRefractive * refractedColor;
 		}
 		
@@ -387,7 +398,7 @@ __host__ __device__ void TraceRay(ray r, int rayDepth, staticGeom* geoms, int nu
 		for(int i = 0; i < LIGHT_NUM; i++)
 		{
 			glm::vec3 currlightPos = lightPos[i];
-			color += .3f * currMaterial.color + refr;
+			color += .2f * currMaterial.color + refr;
 			
 			if(ShadowRayUnblock(geoms, numberOfGeoms, intersectionPoint, lightIndex, geomIndex, normal, currlightPos))
 			{
@@ -404,10 +415,10 @@ __host__ __device__ void TraceRay(ray r, int rayDepth, staticGeom* geoms, int nu
 				else
 					specNum = 0.0f;
 
-				color += (materials[geoms[lightIndex].materialid].color * (0.5f * currMaterial.color * diffuseTerm + specNum)) + spec;
+				color += (materials[geoms[lightIndex].materialid].color * (0.5f * currMaterial.color * diffuseTerm + specNum)) + 0.2f * spec;
 			}
 		}
-		float area = geoms[lightIndex].scale.x * geoms[lightIndex].scale.y * geoms[lightIndex].scale.z;
+		//float area = geoms[lightIndex].scale.x * geoms[lightIndex].scale.y * geoms[lightIndex].scale.z;
 
 		color /= LIGHT_NUM;				
 		return;
@@ -436,7 +447,7 @@ __global__ void raytraceRay(glm::vec2 resolution, float time, cameraData cam, in
 				//get random number for anti-alaising
 				glm::vec3 ran = generateRandomNumberFromThread(cam.resolution, time, x, y);
 				ray r = raycastFromCameraKernel(resolution, time, (float)(x + (sx + ran.x)/ns), (float)(y + (sy + ran.y)/ns), cam.position, cam.view, cam.up, cam.fov);
-				TraceRay(r, rayDepth, geoms, numberOfGeoms, materials, color, cam.position, lightPos, lightIndex, time);		
+				TraceRay(r, rayDepth, geoms, numberOfGeoms, materials, color, cam.position, lightPos, lightIndex, time, (int)(ran.z * 10));		
 				colors[index] += color;
 			}
 		}
@@ -533,7 +544,7 @@ void cudaRaytraceCore(uchar4* PBOpos, camera* renderCam, int frame, int iteratio
   //retrieve image from GPU
   cudaMemcpy( renderCam->image, cudaimage, (int)renderCam->resolution.x*(int)renderCam->resolution.y*sizeof(glm::vec3), cudaMemcpyDeviceToHost);
 
- // for(int i = 0; i < (int)renderCam->resolution.x*(int)renderCam->resolution.y; i++)
+  //for(int i = 0; i < (int)renderCam->resolution.x*(int)renderCam->resolution.y; i++)
 	//   renderCam->image[i] = renderCam->image[i] / (float)iterations;
 
 
