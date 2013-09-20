@@ -272,7 +272,7 @@ __host__ __device__ void TraceRay(ray r, int rayDepth, staticGeom* geoms, int nu
 		for(int i = 0; i < LIGHT_NUM; i++)
 		{
 			glm::vec3 currlightPos = lightPos[i];
-			color += .2f * currMaterial.color + refr;
+			color += .2f * currMaterial.color + 0.7f * refr;
 			
 			if(ShadowRayUnblock(geoms, numberOfGeoms, intersectionPoint, lightIndex, geomIndex, normal, currlightPos))
 			{

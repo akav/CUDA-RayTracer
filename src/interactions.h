@@ -49,7 +49,10 @@ __host__ __device__ glm::vec3 calculateTransmissionDirection(glm::vec3 normal, g
 		return glm::normalize((-n12 * glm::dot(normal, incident) - sqrt(temp)) * normal + n12 * incident);	
 	}
 	else
+	{
 		return calculateReflectionDirection(normal, incident);
+	}
+		
 }
 
 //TODO (OPTIONAL): IMPLEMENT THIS FUNCTION
