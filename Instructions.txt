@@ -1,0 +1,1 @@
+Because I use recursive ray tracing in my project, so please set the computer capability in Project Property, under the CUDA C/C++, Device, Code Generation, change compute_10 to compute_20 or higher, change sm_10 to sm_20 or higher.
