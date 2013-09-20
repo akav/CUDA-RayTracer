@@ -99,15 +99,9 @@ __host__ __device__ bool rayBoxIntersect(ray r, float t[2])
 			}
 		}
 		else{
-			//if(r.direction[i] >= 0){
-				t_min = (min_box[i] - r.origin[i]) / r.direction[i];
-				t_max = (max_box[i] - r.origin[i]) / r.direction[i];
-			//}
-			//else
-			//{
-			//	t_min = (max_box[i] - r.origin[i]) / r.direction[i];
-			//	t_max = (min_box[i] - r.origin[i]) / r.direction[i];
-			//}
+			t_min = (min_box[i] - r.origin[i]) / r.direction[i];
+			t_max = (max_box[i] - r.origin[i]) / r.direction[i];
+			
 			if(t_min > t_max){
 				float temp = t_min;
 				t_min = t_max;
@@ -180,9 +174,7 @@ __host__ __device__ float boxIntersectionTest(staticGeom box, ray r, glm::vec3& 
 		glm::vec3 realIntersectionPoint = multiplyMV(box.transform, glm::vec4(getPointOnRay(rt, ti), 1.0));
 		glm::vec3 realOrigin = multiplyMV(box.transform, glm::vec4(0,0,0,1));
 
-		glm::vec3 unitNormal = getUnitBoxNommal(getPointOnRay(rt, ti));
-		
-		//printf("normal is %f, %f, %f ", unitNormal.x, unitNormal.y, unitNormal.z);
+		glm::vec3 unitNormal = getUnitBoxNommal(getPointOnRay(rt, ti));				
 
 		intersectionPoint = realIntersectionPoint;				
 

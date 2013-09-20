@@ -107,9 +107,9 @@ RSCTCOEFF   0
 EMITTANCE   15
 
 CAMERA
-RES         1024 768
+RES         800 800
 FOVY        25
-ITERATIONS  5
+ITERATIONS  100
 FILE        test.bmp
 frame 0
 EYE         0 4.5 12

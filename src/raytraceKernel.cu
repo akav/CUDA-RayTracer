@@ -15,9 +15,11 @@
 #include "intersections.h"
 #include "interactions.h"
 #include <vector>
+#include <time.h>  
+#include <windows.h>
 
-#define LIGHT_NUM 20
-#define ANTI_NUM 2
+#define LIGHT_NUM 1
+#define ANTI_NUM 1
 
 #if CUDA_VERSION >= 5000
     #include <helper_math.h>
@@ -327,7 +329,7 @@ __host__ __device__ void TraceRay2(ray r, int rayDepth, staticGeom* geoms, int n
 __host__ __device__ void TraceRay(ray r, int rayDepth, staticGeom* geoms, int numberOfGeoms, material* materials, glm::vec3& color, 
 								  glm::vec3 eyePosition, glm::vec3* lightPos, int lightIndex, float time, int randomLightPos)
 {
-	if(rayDepth > 3)
+	if(rayDepth > 2)
 	{
 		color = glm::vec3(0,0,0);
 		return;
@@ -450,9 +452,7 @@ __global__ void raytraceRay(glm::vec2 resolution, float time, cameraData cam, in
 				TraceRay(r, rayDepth, geoms, numberOfGeoms, materials, color, cam.position, lightPos, lightIndex, time, (int)(ran.z * 10));		
 				colors[index] += color;
 			}
-		}
-		//TraceRay2(r, rayDepth, geoms, numberOfGeoms, materials, color, cam.position, reflectiveArray, refractiveArray, numberOfDepth);
-		//TestRecursive(r, rayDepth, geoms, numberOfGeoms, materials, numberOfMaterials, color, cam.position);
+		}	
 		colors[index] /= float(ns*ns);
 	}
 }
@@ -461,10 +461,14 @@ __global__ void raytraceRay(glm::vec2 resolution, float time, cameraData cam, in
 // Wrapper for the __global__ call that sets up the kernel calls and does a ton of memory management
 void cudaRaytraceCore(uchar4* PBOpos, camera* renderCam, int frame, int iterations, material* materials, int numberOfMaterials, geom* geoms, int numberOfGeoms){
   
+  SYSTEMTIME st, et;
+  GetSystemTime(&st);
+  time_t timer1 = time(NULL) * 1000;
+  //time(&timer1) * 1000;
   int traceDepth = 1; //determines how many bounces the raytracer traces
 
   // set up crucial magic
-  int tileSize = 8;
+  int tileSize = 32;	
   dim3 threadsPerBlock(tileSize, tileSize);
   dim3 fullBlocksPerGrid((int)ceil(float(renderCam->resolution.x)/float(tileSize)), (int)ceil(float(renderCam->resolution.y)/float(tileSize)));
   
@@ -529,7 +533,7 @@ void cudaRaytraceCore(uchar4* PBOpos, camera* renderCam, int frame, int iteratio
   cudaMemcpy(cudaLightPos, lightPos, lightNum*sizeof(glm::vec3), cudaMemcpyHostToDevice);
 
   size_t size;
-  cudaDeviceSetLimit(cudaLimitStackSize, 10000*sizeof(float));
+  cudaDeviceSetLimit(cudaLimitStackSize, 1000*sizeof(float));
   cudaDeviceGetLimit(&size, cudaLimitStackSize);
 
   checkCUDAError("pre-raytraceRay error");
@@ -555,6 +559,15 @@ void cudaRaytraceCore(uchar4* PBOpos, camera* renderCam, int frame, int iteratio
 
   // make certain the kernel has completed
   cudaThreadSynchronize();
+
+  time_t timer2 =  time(NULL) * 1000;
+  //time(&timer2) * 1000;
+  GetSystemTime(&et);
+
+  double seconds;
+  seconds = et.wMilliseconds - st.wMilliseconds;//difftime(timer2, timer1);
+
+  printf(" %f \n",seconds);
 
   checkCUDAError("Kernel failed!");
 }
