@@ -18,8 +18,8 @@
 #include <time.h>  
 #include <windows.h>
 
-#define LIGHT_NUM 15
-#define ANTI_NUM 2
+#define LIGHT_NUM 1
+#define ANTI_NUM 1
 
 #if CUDA_VERSION >= 5000
     #include <helper_math.h>
@@ -199,7 +199,7 @@ __host__ __device__ bool checkIntersect(staticGeom* geoms, int numberOfGeoms, ra
 }
 
 __host__ __device__ void TraceRay(ray r, int rayDepth, staticGeom* geoms, int numberOfGeoms, material* materials, glm::vec3& color, 
-								  glm::vec3 eyePosition, glm::vec3* lightPos, int lightIndex, float time, int randomLightPos)
+								  cameraData cam, glm::vec3* lightPos, int lightIndex, float time)
 {
 	if(rayDepth > 3)
 	{
@@ -231,6 +231,13 @@ __host__ __device__ void TraceRay(ray r, int rayDepth, staticGeom* geoms, int nu
 		glm::vec3 spec, refr;
 		glm::vec3 reflectedColor, refractedColor;
 
+		Fresnel fresnel;
+		float inOrOut = glm::dot(r.direction, normal);
+		if(inOrOut < 0)
+			fresnel = calculateFresnel(normal, r.direction, 1.0f, currMaterial.indexOfRefraction, reflectedColor, refractedColor);
+		else
+			fresnel = calculateFresnel(-normal, r.direction, currMaterial.indexOfRefraction, 1.0f, reflectedColor, refractedColor);
+
 		if(currMaterial.hasReflective > 0.0f)//Reflective
 		{			
 			glm::vec3 reflectionDirection = calculateReflectionDirection(normal, r.direction);
@@ -238,10 +245,11 @@ __host__ __device__ void TraceRay(ray r, int rayDepth, staticGeom* geoms, int nu
 			newRay.origin = intersectionPoint + 0.001f * reflectionDirection;
 			newRay.direction = reflectionDirection;	
 			
-			TraceRay(newRay, rayDepth + 1, geoms, numberOfGeoms, materials, reflectedColor, eyePosition, lightPos, lightIndex, time, randomLightPos);			
+			TraceRay(newRay, rayDepth + 1, geoms, numberOfGeoms, materials, reflectedColor, cam, lightPos, lightIndex, time);			
 
 			float reflective = currMaterial.hasReflective;
-			spec = reflective * reflectedColor;
+			//spec = reflective * reflectedColor;
+			spec = fresnel.reflectionCoefficient * reflectedColor;
 		}
 			
 
@@ -264,15 +272,16 @@ __host__ __device__ void TraceRay(ray r, int rayDepth, staticGeom* geoms, int nu
 			newRay.origin = intersectionPoint + 0.001f * refractedDirection;
 			newRay.direction = refractedDirection;
 
-			TraceRay(newRay, rayDepth + 1, geoms, numberOfGeoms, materials, refractedColor, eyePosition, lightPos, lightIndex, time, randomLightPos);
-			refr = currMaterial.hasRefractive * refractedColor;
+			TraceRay(newRay, rayDepth + 1, geoms, numberOfGeoms, materials, refractedColor, cam, lightPos, lightIndex, time);
+			//refr = currMaterial.hasRefractive * refractedColor;
+			refr = fresnel.transmissionCoefficient * refractedColor;
 		}
 		
 		
 		for(int i = 0; i < LIGHT_NUM; i++)
 		{
 			glm::vec3 currlightPos = lightPos[i];
-			color += .2f * currMaterial.color + 0.7f * refr;
+			color += .4f * currMaterial.color + 0.7f * refr;
 			
 			if(ShadowRayUnblock(geoms, numberOfGeoms, intersectionPoint, lightIndex, geomIndex, normal, currlightPos))
 			{
@@ -280,7 +289,7 @@ __host__ __device__ void TraceRay(ray r, int rayDepth, staticGeom* geoms, int nu
 				diffuseTerm = glm::dot(glm::normalize(currlightPos - intersectionPoint), normal);
 				diffuseTerm = max(diffuseTerm, 0.0f);
 
-				float specTerm = glm::dot(calculateReflectionDirection(normal, (intersectionPoint - currlightPos)), glm::normalize(eyePosition - intersectionPoint));
+				float specTerm = glm::dot(calculateReflectionDirection(normal, (intersectionPoint - currlightPos)), glm::normalize(cam.position - intersectionPoint));
 				specTerm = max(specTerm, 0.0f);
 
 				float specNum;
@@ -289,12 +298,13 @@ __host__ __device__ void TraceRay(ray r, int rayDepth, staticGeom* geoms, int nu
 				else
 					specNum = 0.0f;
 
-				color += (materials[geoms[lightIndex].materialid].color * (0.5f * currMaterial.color * diffuseTerm + specNum)) + 0.2f * spec;
+				color += (materials[geoms[lightIndex].materialid].color * (0.5f * currMaterial.color * diffuseTerm + specNum)) + 0.4f * spec;
 			}
 		}
 		//float area = geoms[lightIndex].scale.x * geoms[lightIndex].scale.y * geoms[lightIndex].scale.z;
+		//color /= LIGHT_NUM;				
+		//color /= 500.0f;
 
-		color /= LIGHT_NUM;				
 		return;
 	}	
 }
@@ -302,7 +312,7 @@ __host__ __device__ void TraceRay(ray r, int rayDepth, staticGeom* geoms, int nu
 //TODO: IMPLEMENT THIS FUNCTION
 //Core raytracer kernel
 __global__ void raytraceRay(glm::vec2 resolution, float time, cameraData cam, int rayDepth, glm::vec3* colors, staticGeom* geoms,
-							int numberOfGeoms, material* materials, int numberOfMaterials, glm::vec3* lightPos, int lightIndex)
+							int numberOfGeoms, material* materials, int numberOfMaterials, glm::vec3* lightPos, int lightIndex, int iteration)
 {
 
   int x = (blockIdx.x * blockDim.x) + threadIdx.x;
@@ -311,7 +321,7 @@ __global__ void raytraceRay(glm::vec2 resolution, float time, cameraData cam, in
 
 	if((x<=resolution.x && y<=resolution.y))
 	{
-		colors[index] = glm::vec3(0,0,0);
+		//colors[index] = glm::vec3(0,0,0);
 		int ns = ANTI_NUM;
 		glm::vec3 color;
 		for(int sx = 0; sx < ns; sx ++)
@@ -321,8 +331,8 @@ __global__ void raytraceRay(glm::vec2 resolution, float time, cameraData cam, in
 				//get random number for anti-alaising
 				glm::vec3 ran = generateRandomNumberFromThread(cam.resolution, time, x, y);
 				ray r = raycastFromCameraKernel(resolution, time, (float)(x + (sx + ran.x)/ns), (float)(y + (sy + ran.y)/ns), cam.position, cam.view, cam.up, cam.fov);
-				TraceRay(r, rayDepth, geoms, numberOfGeoms, materials, color, cam.position, lightPos, lightIndex, time, (int)(ran.z * 10));		
-				colors[index] += color;
+				TraceRay(r, rayDepth, geoms, numberOfGeoms, materials, color, cam, lightPos, lightIndex, time);		
+				colors[index] += color / (float)iteration;
 			}
 		}	
 		colors[index] /= float(ns*ns);
@@ -349,7 +359,6 @@ void cudaRaytraceCore(uchar4* PBOpos, camera* renderCam, int frame, int iteratio
   cudaMalloc((void**)&cudaimage, (int)renderCam->resolution.x*(int)renderCam->resolution.y*sizeof(glm::vec3));
   cudaMemcpy( cudaimage, renderCam->image, (int)renderCam->resolution.x*(int)renderCam->resolution.y*sizeof(glm::vec3), cudaMemcpyHostToDevice);
   
- 
   //package geometry and materials and sent to GPU
   staticGeom* geomList = new staticGeom[numberOfGeoms];
   for(int i=0; i<numberOfGeoms; i++){
@@ -393,10 +402,10 @@ void cudaRaytraceCore(uchar4* PBOpos, camera* renderCam, int frame, int iteratio
 
   int lightNum = LIGHT_NUM;
   glm::vec3 *lightPos = new glm::vec3[lightNum];
-  for(int i = 0; i < lightNum; i++)
-  {
-	  lightPos[i] = getRandomPointOnCube(geomList[lightIndex], (float)i);
-  }
+ // for(int i = 0; i < lightNum; i++)
+  //{
+  lightPos[0] = getRandomPointOnCube(geomList[lightIndex], (float)iterations);
+  //}
 
   glm::vec3* cudaLightPos = NULL;
   cudaMalloc((void**)&cudaLightPos, lightNum*sizeof(glm::vec3));
@@ -410,7 +419,7 @@ void cudaRaytraceCore(uchar4* PBOpos, camera* renderCam, int frame, int iteratio
 
   //kernel launches
   raytraceRay<<<fullBlocksPerGrid, threadsPerBlock>>>(renderCam->resolution, (float)iterations, cam, traceDepth, cudaimage, cudageoms, 
-	  numberOfGeoms, cudamaterial, numberOfMaterials, cudaLightPos, lightIndex);
+	  numberOfGeoms, cudamaterial, numberOfMaterials, cudaLightPos, lightIndex, renderCam->iterations);
   
   checkCUDAError("raytraceRay error");
   sendImageToPBO<<<fullBlocksPerGrid, threadsPerBlock>>>(PBOpos, renderCam->resolution, cudaimage);
@@ -437,7 +446,7 @@ void cudaRaytraceCore(uchar4* PBOpos, camera* renderCam, int frame, int iteratio
   double seconds;
   seconds = et.wMilliseconds - st.wMilliseconds;//difftime(timer2, timer1);
 
-  printf(" %f \n",seconds);
+ /// printf(" %f \n",seconds);
 
   checkCUDAError("Kernel failed!");
 }

@@ -64,9 +64,33 @@ __host__ __device__ glm::vec3 calculateReflectionDirection(glm::vec3 normal, glm
 //TODO (OPTIONAL): IMPLEMENT THIS FUNCTION
 __host__ __device__ Fresnel calculateFresnel(glm::vec3 normal, glm::vec3 incident, float incidentIOR, float transmittedIOR, glm::vec3 reflectionDirection, glm::vec3 transmissionDirection) {
   Fresnel fresnel;
-
+  
   fresnel.reflectionCoefficient = 1;
   fresnel.transmissionCoefficient = 0;
+  
+  if(transmittedIOR == 0.0f)
+	  return fresnel;
+
+  float n1n2 = incidentIOR / transmittedIOR;
+
+  float cosI =  - glm::dot(incident, normal);
+  float sinT2 = (n1n2 * n1n2) * (1 - pow(cosI,2));
+
+  if(1 - sinT2 < 0.f)
+	  return fresnel;
+
+  float cosT = sqrt(1.0f - sinT2);
+
+  float r1 = pow(((incidentIOR * cosI - transmittedIOR * cosT) / (incidentIOR * cosI + transmittedIOR * cosT)), 2);
+  //float r2 = pow((transmittedIOR * cosI - incidentIOR * cosT) / (transmittedIOR * cosI + incidentIOR * cosT), 2);
+  float r2 = pow(((incidentIOR * cosT - transmittedIOR * cosI) / (incidentIOR * cosT + transmittedIOR * cosI)), 2);
+  fresnel.reflectionCoefficient = (r1 + r2) / 2.0f;
+  fresnel.transmissionCoefficient = 1.0f - fresnel.reflectionCoefficient;
+
+  //printf(" %f ", fresnel.transmissionCoefficient);
+  //printf(" %f ", cosI);
+  
+
   return fresnel;
 }
 
