@@ -50,7 +50,7 @@ __host__ __device__ glm::vec3 calculateTransmissionDirection(glm::vec3 normal, g
 	}
 	else
 	{
-		return calculateReflectionDirection(normal, incident);
+		return calculateReflectionDirection(normal, incident);		
 	}
 		
 }

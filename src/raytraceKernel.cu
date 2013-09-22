@@ -201,7 +201,7 @@ __host__ __device__ bool checkIntersect(staticGeom* geoms, int numberOfGeoms, ra
 __host__ __device__ void TraceRay(ray r, int rayDepth, staticGeom* geoms, int numberOfGeoms, material* materials, glm::vec3& color, 
 								  cameraData cam, glm::vec3* lightPos, int lightIndex, float time)
 {
-	if(rayDepth > 3)
+	if(rayDepth > 5)
 	{
 		color = glm::vec3(0,0,0);
 		return;
@@ -238,7 +238,7 @@ __host__ __device__ void TraceRay(ray r, int rayDepth, staticGeom* geoms, int nu
 		else
 			fresnel = calculateFresnel(-normal, r.direction, currMaterial.indexOfRefraction, 1.0f, reflectedColor, refractedColor);
 
-		if(currMaterial.hasReflective > 0.0f)//Reflective
+		if(currMaterial.hasReflective > 0.0f || (currMaterial.hasRefractive > 0.0f && fresnel.reflectionCoefficient > 0.0f))//Reflective
 		{			
 			glm::vec3 reflectionDirection = calculateReflectionDirection(normal, r.direction);
 			ray newRay;
@@ -269,7 +269,7 @@ __host__ __device__ void TraceRay(ray r, int rayDepth, staticGeom* geoms, int nu
 				refractedDirection = calculateTransmissionDirection(-normal, r.direction, refractive, 1.0); 
 			}			
 			ray newRay;
-			newRay.origin = intersectionPoint + 0.001f * refractedDirection;
+			newRay.origin = intersectionPoint + 0.01f * refractedDirection;
 			newRay.direction = refractedDirection;
 
 			TraceRay(newRay, rayDepth + 1, geoms, numberOfGeoms, materials, refractedColor, cam, lightPos, lightIndex, time);
@@ -281,7 +281,7 @@ __host__ __device__ void TraceRay(ray r, int rayDepth, staticGeom* geoms, int nu
 		for(int i = 0; i < LIGHT_NUM; i++)
 		{
 			glm::vec3 currlightPos = lightPos[i];
-			color += .4f * currMaterial.color + 0.7f * refr;
+			color += .4f * currMaterial.color + 1.0f * refr;
 			
 			if(ShadowRayUnblock(geoms, numberOfGeoms, intersectionPoint, lightIndex, geomIndex, normal, currlightPos))
 			{
