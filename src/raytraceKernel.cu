@@ -321,6 +321,7 @@ __global__ void raytraceRay(glm::vec2 resolution, float time, cameraData cam, in
 
 	if((x<=resolution.x && y<=resolution.y))
 	{
+		//glm::vec3 temp = colors[index];
 		//colors[index] = glm::vec3(0,0,0);
 		int ns = ANTI_NUM;
 		glm::vec3 color;
@@ -334,14 +335,15 @@ __global__ void raytraceRay(glm::vec2 resolution, float time, cameraData cam, in
 				TraceRay(r, rayDepth, geoms, numberOfGeoms, materials, color, cam, lightPos, lightIndex, time);		
 				colors[index] += color / (float)iteration;
 			}
-		}	
+		}
+
 		colors[index] /= float(ns*ns);
 	}
 }
 
 //TODO: FINISH THIS FUNCTION
 // Wrapper for the __global__ call that sets up the kernel calls and does a ton of memory management
-void cudaRaytraceCore(uchar4* PBOpos, camera* renderCam, int frame, int iterations, material* materials, int numberOfMaterials, geom* geoms, int numberOfGeoms){
+void cudaRaytraceCore(uchar4* PBOpos, camera* renderCam, int frame, int iterations, material* materials, int numberOfMaterials, geom* geoms, int numberOfGeoms, camera* fakeCam){
   
   SYSTEMTIME st, et;
   GetSystemTime(&st);
@@ -427,8 +429,8 @@ void cudaRaytraceCore(uchar4* PBOpos, camera* renderCam, int frame, int iteratio
   //retrieve image from GPU
   cudaMemcpy( renderCam->image, cudaimage, (int)renderCam->resolution.x*(int)renderCam->resolution.y*sizeof(glm::vec3), cudaMemcpyDeviceToHost);
 
-  //for(int i = 0; i < (int)renderCam->resolution.x*(int)renderCam->resolution.y; i++)
-	//   renderCam->image[i] = renderCam->image[i] / (float)iterations;
+ // for(int i = 0; i < (int)renderCam->resolution.x*(int)renderCam->resolution.y; i++)
+	//  renderCam->image[i] = renderCam->image[i] / ((float)iterations + (float)iterations + 1);
 
 
   //free up stuff, or else we'll leak memory like a madman

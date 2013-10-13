@@ -48,6 +48,7 @@ using namespace std;
 
 scene* renderScene;
 camera* renderCam;
+camera* fakeCam;
 int targetFrame;
 int iterations;
 bool finishedRender;

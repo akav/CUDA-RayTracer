@@ -1,3 +1,24 @@
+## GPU Ray Tracing ##
+
+![Alt text](/renders/test.0isReal.bmp "With Fresrenl")
+
+**Description:**
+
+In this GPU Raytracing project, I implemented raycast from camera, phong lighting for one point light source, diffuse lambertian surfaces, raytraced shadows, cube intersection testing and sphere surface point sampling. The ray tracing method I used in this project is a recursive ray tracing, so it required computer capability 2.0 or higher. So please set the computer capability in Project Property, under the CUDA C/C++, Device, Code Generation, change compute_10 to compute_20 or higher, change sm_10 to sm_20 or higher.
+
+In addition to the basic feature of ray tracing, I also implemented specular reflection, soft shadows and area light, super sampled antialiasing and refraction. The area light by default in my project is 20, you can change it by finding LIGHT_NUM in .cu file. Also, for the super sampled antialiasing, I implemented the Monte Carlo antialiasing. You can change the number of sample pre pixel by finding the ANTI_NUM in .cu file. Due to the capability the cuda and brunch other features of the ray tracing, the number for antialiasing could not be set to high. By default the value is 2.
+
+**Instruction:**
+
+Because I use recursive ray tracing in my project, so please set the computer capability in Project Property, under the CUDA C/C++, Device, Code Generation, change compute20 or higher, change sm20 or higher.
+
+**Screen Shot:**
+
+![Alt text](/renders/111.bmp "reflection only")
+
+![Alt text](/renders/test.0fff.bmp "for fun")
+
+
 -------------------------------------------------------------------------------
 CIS565: Project 1: CUDA Raytracer
 -------------------------------------------------------------------------------
